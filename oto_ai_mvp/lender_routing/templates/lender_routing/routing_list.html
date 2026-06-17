@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Lender Routing{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">Lender Routing</h4>
+    <small class="text-muted">Layer 4 — Multi-armed bandit: approval probability × yield optimization</small>
+  </div>
+  <span class="ai-tag ms-3">Thompson Sampling Mock</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card metric-card p-3">
+      <div class="fw-semibold mb-3">Lender Allocation & Performance</div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr><th>Lender</th><th>Routed</th><th>Approved</th><th>Approval Rate</th><th>Net Yield</th></tr>
+          </thead>
+          <tbody>
+            {% for lender, data in lender_counts.items %}
+            <tr>
+              <td class="fw-semibold">{{ lender }}</td>
+              <td>{{ data.count }}</td>
+              <td>{{ data.approved }}</td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress" style="width:60px;height:6px;">
+                    <div class="progress-bar bg-success" style="width:{{ data.rate }}%"></div>
+                  </div>
+                  <small>{{ data.rate }}%</small>
+                </div>
+              </td>
+              <td><span class="badge bg-light text-dark border">{{ data.yield }}%</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card p-3">
+      <div class="fw-semibold mb-2">Net Yield by Lender <span class="ai-tag">Bandit Objective</span></div>
+      <canvas id="yieldChart" height="260"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="card metric-card">
+  <div class="card-body">
+    <div class="fw-semibold mb-3">Recent Routing Decisions</div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+          <tr><th>Name</th><th>Selected Lender</th><th>P(Approval)</th><th>Yield</th><th>Objective</th><th>Response</th><th>Fallback</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for r in routes %}
+          <tr>
+            <td class="fw-semibold">{{ r.applicant.name }}</td>
+            <td>{{ r.get_selected_lender_display }}</td>
+            <td>{{ r.approval_probability }}</td>
+            <td>{{ r.expected_yield }}%</td>
+            <td class="fw-bold text-primary">{{ r.objective_score }}</td>
+            <td>
+              {% if r.lender_response == 'approved' %}
+                <span class="badge bg-success">Approved</span>
+              {% elif r.lender_response == 'pending' %}
+                <span class="badge bg-warning text-dark">Pending</span>
+              {% else %}
+                <span class="badge bg-danger">Declined</span>
+              {% endif %}
+            </td>
+            <td><small class="text-muted">{{ r.get_fallback_lender_display }}</small></td>
+            <td><a href="/routing/{{ r.applicant.id }}/" class="btn btn-sm btn-outline-primary">Detail</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const yc = {{ yield_chart|safe }};
+new Chart(document.getElementById('yieldChart'), {
+  type: 'bar',
+  data: {
+    labels: yc.labels,
+    datasets: [{ label: 'Net Yield %', data: yc.yields,
+      backgroundColor: '#2BB780', borderRadius: 4 }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: { x: { beginAtZero: true, title: { display: true, text: 'Net Yield (%)' } } }
+  }
+});
+</script>
+{% endblock %}

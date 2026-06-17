@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Fraud Detection{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">Fraud Detection</h4>
+    <small class="text-muted">Layer 5 — Device/identity graph anomaly scoring (GNN mock)</small>
+  </div>
+  <span class="ai-tag ms-3">GNN Mock</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#dc3545;">{{ high }}</div>
+      <div class="text-muted">High Risk</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#fd7e14;">{{ medium }}</div>
+      <div class="text-muted">Medium Risk</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#198754;">{{ low }}</div>
+      <div class="text-muted">Low Risk</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <canvas id="fraudPie" height="80"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Fraud Ring Alert -->
+{% if ring_cases %}
+<div class="alert alert-danger mb-4">
+  <strong><i class="bi bi-exclamation-octagon-fill me-1"></i>Fraud Ring Detected — Device DEV-0294</strong><br>
+  The following applicants share the same device ID and triggered velocity flags:
+  {% for r in ring_cases %}
+    <a href="/fraud/{{ r.applicant.id }}/" class="badge bg-danger text-decoration-none ms-1">
+      {{ r.applicant.name }}
+    </a>
+  {% endfor %}
+  — <em>Graph-level detection: a row-level ML model would have missed this pattern.</em>
+</div>
+{% endif %}
+
+<div class="card metric-card">
+  <div class="card-body">
+    <div class="fw-semibold mb-3">Flagged Cases — High & Medium Risk</div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th><th>Risk</th><th>Score</th><th>Device</th>
+            <th>Device Reuse</th><th>Velocity</th><th>Synthetic ID</th><th>Action</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in assessments %}
+          <tr>
+            <td class="fw-semibold">{{ a.applicant.name }}</td>
+            <td>
+              {% if a.fraud_risk_label == 'high' %}
+                <span class="badge bg-danger">High</span>
+              {% elif a.fraud_risk_label == 'medium' %}
+                <span class="badge bg-warning text-dark">Medium</span>
+              {% else %}
+                <span class="badge bg-success">Low</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress" style="width:50px;height:5px;">
+                  <div class="progress-bar {% if a.fraud_risk_label == 'high' %}bg-danger{% else %}bg-warning{% endif %}"
+                       style="width:{{ a.fraud_risk_score }}00%"></div>
+                </div>
+                <small>{{ a.fraud_risk_score }}</small>
+              </div>
+            </td>
+            <td><code>{{ a.device_id }}</code></td>
+            <td class="{% if a.device_reuse_count > 1 %}text-danger fw-bold{% endif %}">{{ a.device_reuse_count }}×</td>
+            <td>{% if a.velocity_flag %}<span class="text-danger fw-bold">⚠ Yes</span>{% else %}—{% endif %}</td>
+            <td>{% if a.synthetic_id_flag %}<span class="text-danger fw-bold">⚠ Yes</span>{% else %}—{% endif %}</td>
+            <td>
+              {% if a.recommended_action == 'reject' %}
+                <span class="badge bg-danger">Reject</span>
+              {% elif a.recommended_action == 'manual_review' %}
+                <span class="badge bg-warning text-dark">Review</span>
+              {% elif a.recommended_action == 'watchlist' %}
+                <span class="badge bg-secondary">Watchlist</span>
+              {% else %}
+                <span class="badge bg-success">Pass</span>
+              {% endif %}
+            </td>
+            <td><a href="/fraud/{{ a.applicant.id }}/" class="btn btn-sm btn-outline-primary">Detail</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const pd = {{ pie_data|safe }};
+new Chart(document.getElementById('fraudPie'), {
+  type: 'doughnut',
+  data: {
+    labels: ['High', 'Medium', 'Low'],
+    datasets: [{ data: [pd.high, pd.medium, pd.low],
+      backgroundColor: ['#dc3545', '#fd7e14', '#198754'], borderWidth: 0 }]
+  },
+  options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } }, cutout: '55%' }
+});
+</script>
+{% endblock %}

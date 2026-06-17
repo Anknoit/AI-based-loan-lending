@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">AI Lending Intelligence Console</h4>
+    <small class="text-muted">200 applicants · Real-time pipeline view</small>
+  </div>
+</div>
+
+<!-- Metric Cards -->
+<div class="row g-3 mb-4">
+  {% for card in cards %}
+  <div class="col-6 col-lg-2">
+    <div class="card metric-card p-3 h-100">
+      <div class="text-muted" style="font-size:0.75rem;">{{ card.label }}</div>
+      <div class="fw-bold" style="font-size:1.8rem;color:{{ card.color }};">{{ card.value }}</div>
+      <div style="font-size:0.7rem;color:#aaa;">{{ card.sub }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card metric-card p-3">
+      <div class="fw-semibold mb-2">Risk Grade Distribution <span class="ai-tag">Credit Engine</span></div>
+      <canvas id="gradeChart" height="200"></canvas>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card p-3">
+      <div class="fw-semibold mb-2">Lead Funnel <span class="ai-tag">Pipeline</span></div>
+      <canvas id="funnelChart" height="200"></canvas>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card p-3">
+      <div class="fw-semibold mb-2">Collections Risk by City <span class="ai-tag">Collections</span></div>
+      <canvas id="cityChart" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Applicants Pipeline Table -->
+<div class="card metric-card">
+  <div class="card-body">
+    <div class="fw-semibold mb-3">Recent Applicants — Pipeline Status</div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th><th>Name</th><th>Bike</th><th>City</th>
+            <th>Lead</th><th>KYC</th><th>Credit</th><th>Routed</th><th>Fraud</th><th>Disbursed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in recent %}
+          <tr onclick="window.location='/credit/{{ a.id }}/'">
+            <td class="text-muted">{{ a.id }}</td>
+            <td class="fw-semibold">{{ a.name }}</td>
+            <td><small>{{ a.get_bike_model_display }}</small></td>
+            <td>{{ a.get_city_display }}</td>
+            <td>{% if a.lead_scored %}<span class="badge bg-success">✓</span>{% else %}<span class="badge bg-secondary">—</span>{% endif %}</td>
+            <td>{% if a.kyc_done %}<span class="badge bg-success">✓</span>{% else %}<span class="badge bg-secondary">—</span>{% endif %}</td>
+            <td>{% if a.underwritten %}<span class="badge bg-primary">✓</span>{% else %}<span class="badge bg-secondary">—</span>{% endif %}</td>
+            <td>{% if a.routed %}<span class="badge bg-info text-dark">✓</span>{% else %}<span class="badge bg-secondary">—</span>{% endif %}</td>
+            <td>{% if a.fraud_checked %}<span class="badge bg-warning text-dark">✓</span>{% else %}<span class="badge bg-secondary">—</span>{% endif %}</td>
+            <td>{% if a.disbursed %}<span class="badge bg-success">✓</span>{% else %}<span class="badge bg-secondary">—</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// Risk Grade Doughnut
+const gradeData = {{ grade_counts_json|safe }};
+new Chart(document.getElementById('gradeChart'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(gradeData),
+    datasets: [{
+      data: Object.values(gradeData),
+      backgroundColor: ['#198754','#20c997','#0d6efd','#fd7e14','#dc3545'],
+    }]
+  },
+  options: { plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+});
+
+// Funnel Bar
+new Chart(document.getElementById('funnelChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Scored','KYC Done','Underwritten','Approved','Disbursed'],
+    datasets: [{
+      data: [{{ funnel.scored }}, {{ funnel.kyc_clear }}, {{ funnel.underwritten }}, {{ funnel.approved }}, {{ funnel.disbursed }}],
+      backgroundColor: ['#0d6efd','#6610f2','#0dcaf0','#198754','#2BB780'],
+      borderRadius: 6,
+    }]
+  },
+  options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+
+// Collections by City Stacked
+const cityData = {{ city_collections|safe }};
+new Chart(document.getElementById('cityChart'), {
+  type: 'bar',
+  data: {
+    labels: cityData.map(d => d.city),
+    datasets: [
+      { label: 'Green', data: cityData.map(d => d.green), backgroundColor: '#198754', borderRadius: 3 },
+      { label: 'Amber', data: cityData.map(d => d.amber), backgroundColor: '#fd7e14', borderRadius: 3 },
+      { label: 'Red',   data: cityData.map(d => d.red),   backgroundColor: '#dc3545', borderRadius: 3 },
+    ]
+  },
+  options: {
+    plugins: { legend: { position: 'bottom' } },
+    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+  }
+});
+</script>
+{% endblock %}

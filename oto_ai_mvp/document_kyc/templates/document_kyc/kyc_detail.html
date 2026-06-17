@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}KYC — {{ applicant.name }}{% endblock %}
+{% block content %}
+
+<div class="mb-3"><a href="/kyc/" class="text-muted text-decoration-none">← Document KYC</a></div>
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">{{ applicant.name }}</h4>
+    <small class="text-muted">KYC Report · {{ applicant.get_city_display }}</small>
+  </div>
+  <span class="ms-3">
+    {% if record.kyc_status == 'clear' %}
+      <span class="badge bg-success fs-6">✓ KYC Clear</span>
+    {% elif record.kyc_status == 'review' %}
+      <span class="badge bg-warning text-dark fs-6">⚠ Needs Review</span>
+    {% else %}
+      <span class="badge bg-danger fs-6">✗ Rejected</span>
+    {% endif %}
+  </span>
+</div>
+
+<div class="row g-3">
+  <!-- Extracted vs Submitted -->
+  <div class="col-md-5">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Document Extraction <span class="ai-tag">OCR</span></div>
+      <table class="table table-sm">
+        <thead><tr><th>Field</th><th>Submitted</th><th>OCR Extracted</th><th>Match</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Name</td>
+            <td>{{ applicant.name }}</td>
+            <td>
+              {% if record.name_extracted != applicant.name %}
+                <span class="text-warning fw-bold">{{ record.name_extracted }}</span>
+              {% else %}
+                {{ record.name_extracted }}
+              {% endif %}
+            </td>
+            <td>
+              <span class="{% if record.name_match_score >= 0.75 %}text-success{% else %}text-danger fw-bold{% endif %}">
+                {{ record.name_match_score }}
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td>DOB</td>
+            <td>—</td>
+            <td>{{ record.dob_extracted }}</td>
+            <td>{% if record.dob_match %}<span class="text-success">✓</span>{% else %}<span class="text-danger fw-bold">✗ Mismatch</span>{% endif %}</td>
+          </tr>
+          <tr>
+            <td>Aadhaar</td>
+            <td colspan="2"><code>{{ record.aadhaar_number }}</code></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>PAN</td>
+            <td colspan="2"><code>{{ record.pan_number }}</code></td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="mt-2">
+        <div class="text-muted small">Extracted Address:</div>
+        <div class="small border rounded p-2 bg-light">{{ record.address_extracted }}</div>
+      </div>
+      {% if record.kyc_status == 'review' %}
+      <div class="alert alert-warning mt-3 mb-0 small">
+        ⚠ <strong>AI flagged for human review</strong> — Name match score {{ record.name_match_score }} below 0.75 threshold or DOB mismatch. OCR truncation detected.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Bureau Score -->
+  <div class="col-md-3">
+    <div class="card metric-card p-4 text-center">
+      <div class="fw-semibold mb-3">Bureau Score <span class="ai-tag">{{ record.get_bureau_source_display }}</span></div>
+      <canvas id="bureauGauge" width="160" height="160"></canvas>
+      <div class="fw-bold mt-2" style="font-size:2rem;
+        color:{% if record.bureau_score and record.bureau_score >= 700 %}#198754{% elif record.bureau_score and record.bureau_score >= 580 %}#fd7e14{% else %}#dc3545{% endif %}">
+        {% if record.bureau_score %}{{ record.bureau_score }}{% else %}No Hit{% endif %}
+      </div>
+      <div class="text-muted small">Score range: 300–900</div>
+      {% if record.bureau_score %}
+      <div class="mt-2">
+        <div class="progress" style="height:8px;">
+          <div class="progress-bar {% if record.bureau_score >= 700 %}bg-success{% elif record.bureau_score >= 580 %}bg-warning{% else %}bg-danger{% endif %}"
+               style="width:{{ bureau_pct }}%"></div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Applicant Info -->
+  <div class="col-md-4">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Applicant Profile</div>
+      <table class="table table-sm">
+        <tr><td>Employment</td><td>{{ applicant.get_employment_type_display }}</td></tr>
+        <tr><td>Monthly Income</td><td>₹{{ applicant.monthly_income|floatformat:0 }}</td></tr>
+        <tr><td>Bike</td><td>{{ applicant.get_bike_model_display }}</td></tr>
+        <tr><td>Loan Amount</td><td>₹{{ applicant.loan_amount|floatformat:0 }}</td></tr>
+        <tr><td>Tenure</td><td>{{ applicant.tenure_months }} months</td></tr>
+        <tr><td>City</td><td>{{ applicant.get_city_display }}</td></tr>
+        <tr><td>Phone</td><td>{{ applicant.phone }}</td></tr>
+        <tr><td>Email</td><td><small>{{ applicant.email }}</small></td></tr>
+      </table>
+      <a href="/credit/{{ applicant.id }}/" class="btn btn-sm btn-outline-primary w-100 mt-2">
+        → View Credit Assessment
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+// Doughnut gauge for bureau score
+const score = {{ record.bureau_score|default:0 }};
+const maxScore = 900, minScore = 300;
+const pct = score > 0 ? (score - minScore) / (maxScore - minScore) : 0;
+new Chart(document.getElementById('bureauGauge'), {
+  type: 'doughnut',
+  data: {
+    datasets: [{
+      data: [pct, 1 - pct],
+      backgroundColor: [
+        score >= 700 ? '#198754' : score >= 580 ? '#fd7e14' : '#dc3545',
+        '#e9ecef'
+      ],
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    cutout: '70%',
+    rotation: -90,
+    circumference: 180,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+  }
+});
+</script>
+{% endblock %}

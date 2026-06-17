@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Routing — {{ applicant.name }}{% endblock %}
+{% block content %}
+
+<div class="mb-3"><a href="/routing/" class="text-muted text-decoration-none">← Lender Routing</a></div>
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">{{ applicant.name }}</h4>
+    <small class="text-muted">Routing Decision · Risk Grade
+      <span class="fw-bold {% if risk_grade == 'A+' or risk_grade == 'A' %}text-success{% elif risk_grade == 'B' %}text-primary{% elif risk_grade == 'C' %}text-warning{% else %}text-danger{% endif %}">
+        {{ risk_grade }}
+      </span>
+    </small>
+  </div>
+  <span class="badge bg-success ms-3 fs-6">→ {{ route.get_selected_lender_display }}</span>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Routing Decision</div>
+      <table class="table table-sm">
+        <tr><td>Selected Lender</td><td class="fw-bold text-success">{{ route.get_selected_lender_display }}</td></tr>
+        <tr><td>P(Approval)</td><td>{{ route.approval_probability }}</td></tr>
+        <tr><td>Expected Yield</td><td>{{ route.expected_yield }}%</td></tr>
+        <tr><td>Objective Score</td><td class="fw-bold text-primary">{{ route.objective_score }}</td></tr>
+        <tr><td>Fallback Lender</td><td class="text-muted">{{ route.get_fallback_lender_display }}</td></tr>
+        <tr><td>Lender Response</td>
+          <td>
+            {% if route.lender_response == 'approved' %}
+              <span class="badge bg-success">Approved</span>
+            {% elif route.lender_response == 'pending' %}
+              <span class="badge bg-warning text-dark">Pending</span>
+            {% else %}
+              <span class="badge bg-danger">Declined</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% if route.actual_rate %}
+        <tr><td>Actual Rate</td><td class="fw-bold">{{ route.actual_rate }}%</td></tr>
+        {% endif %}
+      </table>
+      <div class="alert alert-info small mt-2 mb-0">
+        <strong>Objective:</strong> P(approval) × Net Yield — Thompson Sampling bandit selects lender maximising risk-adjusted return.
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">All Lender Scores — Ranked <span class="ai-tag">Bandit Scores</span></div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr><th>Rank</th><th>Lender</th><th>P(Approval)</th><th>Net Yield</th><th>Objective Score</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            {% for item in ranked_display %}
+            <tr class="{% if item.is_selected %}table-success{% elif item.is_fallback %}table-warning{% endif %}">
+              <td class="text-muted">#{{ forloop.counter }}</td>
+              <td class="fw-semibold">{{ item.lender }}</td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress" style="width:50px;height:5px;">
+                    <div class="progress-bar bg-primary" style="width:{{ item.p }}00%"></div>
+                  </div>
+                  {{ item.p }}
+                </div>
+              </td>
+              <td>{{ item.yield }}%</td>
+              <td class="fw-bold">{{ item.objective }}</td>
+              <td>
+                {% if item.is_selected %}
+                  <span class="badge bg-success">✓ Selected</span>
+                {% elif item.is_fallback %}
+                  <span class="badge bg-warning text-dark">Fallback</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Credit Engine{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">Credit Underwriting Engine</h4>
+    <small class="text-muted">Layer 3 — Alternative data + bureau → PD score → LTV → SHAP explainability</small>
+  </div>
+  <span class="ai-tag ms-3">LightGBM Mock</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#198754;">{{ decision_counts.approve }}</div>
+      <div class="text-muted">AI Approved</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#fd7e14;">{{ decision_counts.review }}</div>
+      <div class="text-muted">Manual Review</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#dc3545;">{{ decision_counts.reject }}</div>
+      <div class="text-muted">AI Rejected</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#0d6efd;">200</div>
+      <div class="text-muted">Total Assessed</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card metric-card p-3">
+      <div class="fw-semibold mb-2">Risk Grade Distribution <span class="ai-tag">PD Model</span></div>
+      <canvas id="gradeChart" height="220"></canvas>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="card metric-card p-3">
+      <div class="fw-semibold mb-2">Avg PD Score by Employment Type <span class="ai-tag">Alt Data</span></div>
+      <canvas id="empChart" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="card metric-card">
+  <div class="card-body">
+    <div class="fw-semibold mb-3">Recent Assessments</div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th><th>Grade</th><th>PD Score</th><th>Decision</th>
+            <th>Rate</th><th>LTV</th><th>Employment</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in assessments %}
+          <tr onclick="window.location='/credit/{{ a.applicant.id }}/'">
+            <td class="fw-semibold">{{ a.applicant.name }}</td>
+            <td>
+              <span class="fw-bold
+                {% if a.risk_grade == 'A+' %}text-success
+                {% elif a.risk_grade == 'A' %}text-success
+                {% elif a.risk_grade == 'B' %}text-primary
+                {% elif a.risk_grade == 'C' %}text-warning
+                {% else %}text-danger{% endif %}">
+                {{ a.risk_grade }}
+              </span>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress" style="width:60px;height:6px;">
+                  <div class="progress-bar {% if a.pd_score < 0.10 %}bg-success{% elif a.pd_score < 0.22 %}bg-warning{% else %}bg-danger{% endif %}"
+                       style="width:{{ a.pd_score }}00%"></div>
+                </div>
+                <small>{{ a.pd_score }}</small>
+              </div>
+            </td>
+            <td>
+              {% if a.decision == 'approve' %}
+                <span class="badge bg-success">Approve</span>
+              {% elif a.decision == 'review' %}
+                <span class="badge bg-warning text-dark">Review</span>
+              {% else %}
+                <span class="badge bg-danger">Reject</span>
+              {% endif %}
+            </td>
+            <td>{{ a.recommended_rate }}%</td>
+            <td>{{ a.recommended_ltv }}</td>
+            <td><small>{{ a.applicant.get_employment_type_display }}</small></td>
+            <td><a href="/credit/{{ a.applicant.id }}/" class="btn btn-sm btn-outline-primary">Detail</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const gradeData = {{ grade_counts_json|safe }};
+new Chart(document.getElementById('gradeChart'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(gradeData),
+    datasets: [{ data: Object.values(gradeData),
+      backgroundColor: ['#198754','#20c997','#0d6efd','#fd7e14','#dc3545'], }]
+  },
+  options: { plugins: { legend: { position: 'bottom' } }, cutout: '60%' }
+});
+
+const empData = {{ emp_pd|safe }};
+new Chart(document.getElementById('empChart'), {
+  type: 'bar',
+  data: {
+    labels: empData.map(d => d.label),
+    datasets: [{ label: 'Avg PD Score', data: empData.map(d => d.avg_pd),
+      backgroundColor: ['#0d6efd','#6610f2','#fd7e14','#dc3545'], borderRadius: 6 }]
+  },
+  options: { plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, max: 0.5, title: { display: true, text: 'Probability of Default' } } } }
+});
+</script>
+{% endblock %}

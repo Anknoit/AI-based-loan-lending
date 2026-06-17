@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Lead Scoring{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">Lead Scoring</h4>
+    <small class="text-muted">Layer 1 — Behavioral intent → XGBoost propensity → ranked agent queue</small>
+  </div>
+  <span class="ai-tag ms-3">XGBoost Mock</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#dc3545;">{{ hot }}</div>
+      <div class="text-muted">Hot Leads</div>
+      <div><small class="text-muted">Propensity ≥ 0.70</small></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#fd7e14;">{{ warm }}</div>
+      <div class="text-muted">Warm Leads</div>
+      <div><small class="text-muted">0.45 – 0.69</small></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#6c757d;">{{ cold }}</div>
+      <div class="text-muted">Cold Leads</div>
+      <div><small class="text-muted">Below 0.45</small></div>
+    </div>
+  </div>
+</div>
+
+<div class="card metric-card mb-3">
+  <div class="card-body">
+    <div class="d-flex align-items-center mb-3">
+      <span class="fw-semibold me-3">Filter:</span>
+      <a href="/leads/" class="btn btn-sm {% if not band_filter %}btn-dark{% else %}btn-outline-secondary{% endif %} me-2">All</a>
+      <a href="/leads/?band=Hot" class="btn btn-sm {% if band_filter == 'Hot' %}btn-danger{% else %}btn-outline-danger{% endif %} me-2">Hot</a>
+      <a href="/leads/?band=Warm" class="btn btn-sm {% if band_filter == 'Warm' %}btn-warning{% else %}btn-outline-warning{% endif %} me-2">Warm</a>
+      <a href="/leads/?band=Cold" class="btn btn-sm {% if band_filter == 'Cold' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Cold</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Rank</th><th>Name</th><th>Band</th><th>Score</th>
+            <th>EMI Calc</th><th>Return Visit</th><th>Session</th><th>Models</th>
+            <th>UTM</th><th>City</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lead in leads %}
+          <tr>
+            <td class="text-muted fw-bold">#{{ lead.rank }}</td>
+            <td class="fw-semibold">{{ lead.applicant.name }}</td>
+            <td>
+              {% if lead.score_band == 'Hot' %}
+                <span class="badge badge-hot">Hot</span>
+              {% elif lead.score_band == 'Warm' %}
+                <span class="badge badge-warm">Warm</span>
+              {% else %}
+                <span class="badge badge-cold">Cold</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="progress" style="height:6px;width:80px;display:inline-block;vertical-align:middle;">
+                <div class="progress-bar {% if lead.score_band == 'Hot' %}bg-danger{% elif lead.score_band == 'Warm' %}bg-warning{% else %}bg-secondary{% endif %}"
+                     style="width:{{ lead.propensity_score|floatformat:0 }}0%"></div>
+              </div>
+              <small class="ms-1">{{ lead.propensity_score }}</small>
+            </td>
+            <td>{% if lead.emi_calc_used %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td>{% if lead.return_visit %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td>{{ lead.session_minutes|floatformat:1 }}m</td>
+            <td>{{ lead.models_viewed }}</td>
+            <td><span class="badge bg-light text-dark border">{{ lead.utm_source }}</span></td>
+            <td>{{ lead.applicant.get_city_display }}</td>
+            <td><a href="/leads/{{ lead.applicant.id }}/" class="btn btn-xs btn-outline-primary btn-sm">Detail</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

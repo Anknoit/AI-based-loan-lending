@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Credit — {{ applicant.name }}{% endblock %}
+{% block content %}
+
+<div class="mb-3"><a href="/credit/" class="text-muted text-decoration-none">← Credit Engine</a></div>
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">{{ applicant.name }}</h4>
+    <small class="text-muted">Credit Assessment · {{ applicant.get_employment_type_display }} · {{ applicant.get_city_display }}</small>
+  </div>
+  <span class="ms-3">
+    {% if assessment.decision == 'approve' %}
+      <span class="badge bg-success fs-6">✓ Approved</span>
+    {% elif assessment.decision == 'review' %}
+      <span class="badge bg-warning text-dark fs-6">⚠ Manual Review</span>
+    {% else %}
+      <span class="badge bg-danger fs-6">✗ Rejected</span>
+    {% endif %}
+  </span>
+  <span class="ms-2">
+    <span class="badge fs-5 {% if assessment.risk_grade == 'A+' or assessment.risk_grade == 'A' %}bg-success{% elif assessment.risk_grade == 'B' %}bg-primary{% elif assessment.risk_grade == 'C' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+      Grade {{ assessment.risk_grade }}
+    </span>
+  </span>
+</div>
+
+<div class="row g-3">
+  <!-- PD Gauge -->
+  <div class="col-md-3">
+    <div class="card metric-card p-4 text-center">
+      <div class="fw-semibold mb-2">Probability of Default</div>
+      <canvas id="pdGauge" width="160" height="120"></canvas>
+      <div class="fw-bold mt-1" style="font-size:2.5rem;
+        color:{% if assessment.pd_score < 0.10 %}#198754{% elif assessment.pd_score < 0.22 %}#fd7e14{% else %}#dc3545{% endif %}">
+        {{ pd_pct }}%
+      </div>
+      <div class="text-muted small">PD Score: {{ assessment.pd_score }}</div>
+      <hr>
+      <div class="row text-center mt-1">
+        <div class="col">
+          <div class="small text-muted">LTV</div>
+          <div class="fw-bold">{{ assessment.recommended_ltv }}</div>
+        </div>
+        <div class="col">
+          <div class="small text-muted">Rate</div>
+          <div class="fw-bold">{{ assessment.recommended_rate }}%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHAP Waterfall -->
+  <div class="col-md-5">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">SHAP Explainability <span class="ai-tag">AI Explainability</span></div>
+      <div class="small text-muted mb-2"><span class="text-success fw-bold">●</span> Green = reduces default risk &nbsp; <span class="text-danger fw-bold">●</span> Red = increases default risk</div>
+      <canvas id="shapChart" height="280"></canvas>
+    </div>
+  </div>
+
+  <!-- Alt Data & Bureau -->
+  <div class="col-md-4">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Alternative Data Inputs <span class="ai-tag">Account Aggregator</span></div>
+      <table class="table table-sm">
+        <tr><td>UPI Monthly Avg</td><td class="text-end fw-bold">₹{{ assessment.upi_monthly_avg|floatformat:0 }}</td></tr>
+        <tr><td>UPI Volatility</td>
+            <td class="text-end {% if assessment.upi_volatility > 0.3 %}text-warning fw-bold{% endif %}">
+              {{ assessment.upi_volatility }}
+            </td>
+        </tr>
+        <tr><td>Telecom Tenure</td><td class="text-end">{{ assessment.telecom_tenure_yrs }} yrs</td></tr>
+        <tr><td>GST Filed</td><td class="text-end">{% if assessment.gst_filed %}<i class="bi bi-check-circle-fill text-success"></i> Yes{% else %}<span class="text-muted">—</span>{% endif %}</td></tr>
+      </table>
+      <hr>
+      <div class="fw-semibold mb-2">Loan Details</div>
+      <table class="table table-sm">
+        <tr><td>Bike</td><td class="text-end">{{ applicant.get_bike_model_display }}</td></tr>
+        <tr><td>Loan Amount</td><td class="text-end">₹{{ applicant.loan_amount|floatformat:0 }}</td></tr>
+        <tr><td>Tenure</td><td class="text-end">{{ applicant.tenure_months }} months</td></tr>
+        <tr><td>Monthly Income</td><td class="text-end">₹{{ applicant.monthly_income|floatformat:0 }}</td></tr>
+        <tr><td>Down Payment</td><td class="text-end">{{ applicant.down_payment_pct|floatformat:0 }}0%</td></tr>
+      </table>
+      <div class="d-flex gap-2 mt-2">
+        <a href="/kyc/{{ applicant.id }}/" class="btn btn-sm btn-outline-secondary flex-fill">← KYC</a>
+        <a href="/routing/{{ applicant.id }}/" class="btn btn-sm btn-outline-primary flex-fill">Routing →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// PD gauge (half-doughnut)
+const pd = {{ assessment.pd_score }};
+new Chart(document.getElementById('pdGauge'), {
+  type: 'doughnut',
+  data: {
+    datasets: [{
+      data: [pd, 1 - pd],
+      backgroundColor: [pd < 0.10 ? '#198754' : pd < 0.22 ? '#fd7e14' : '#dc3545', '#e9ecef'],
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    cutout: '70%', rotation: -90, circumference: 180,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+  }
+});
+
+// SHAP waterfall
+const shapLabels = {{ shap_labels|safe }};
+const shapValues = {{ shap_values|safe }};
+const shapColors = {{ shap_colors|safe }};
+new Chart(document.getElementById('shapChart'), {
+  type: 'bar',
+  data: {
+    labels: shapLabels,
+    datasets: [{
+      label: 'SHAP Contribution',
+      data: shapValues,
+      backgroundColor: shapColors,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: ctx => `${ctx.raw > 0 ? '+' : ''}${ctx.raw.toFixed(4)} PD contribution` } }
+    },
+    scales: {
+      x: { title: { display: true, text: '← reduces default risk | increases default risk →' } }
+    }
+  }
+});
+</script>
+{% endblock %}

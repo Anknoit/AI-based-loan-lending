@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OTO Capital — {% block title %}Dashboard{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── OTO Capital Design Tokens (from otocapital.in) ──────── */
+    :root {
+      /* Brand */
+      --oto-green:       #2BB780;   /* primary CTA / logo / active */
+      --oto-green-dark:  #1e9466;   /* hover state */
+      --oto-green-bg:    #e8f8f1;   /* tint backgrounds */
+      --oto-green-text:  #166b4a;   /* text on tint */
+
+      /* Typographic scale — mirrors site headings */
+      --oto-heading:     #1A3040;   /* deep teal-navy: "BIKE & SCOOTER LOANS" */
+      --oto-body:        #3D4A52;   /* body copy */
+      --oto-muted:       #8093A0;   /* "INDIA'S NO 1 PLATFORM FOR" grey */
+
+      /* Surfaces */
+      --oto-bg:          #F5F5F5;   /* page background (exact from site) */
+      --oto-surface:     #FFFFFF;   /* cards / topbar */
+      --oto-border:      #E8EBEE;   /* card borders */
+
+      /* Sidebar (OTO's dark heading colour as sidebar base) */
+      --sb-bg:           #1A3040;
+      --sb-bg-deep:      #122430;
+      --sb-border:       rgba(255,255,255,0.07);
+      --sb-text:         #90AAB8;
+      --sb-hover:        rgba(255,255,255,0.06);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background: var(--oto-bg);
+      font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif;
+      color: var(--oto-body);
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+
+    /* ── Sidebar — sits below the full-width topbar ────────────── */
+    .sidebar {
+      width: 240px;
+      height: calc(100vh - 52px);
+      position: fixed;
+      top: 52px; left: 0;
+      background: var(--sb-bg);
+      overflow-y: auto;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--sb-border);
+    }
+
+    /* Nav section label */
+    .sidebar-nav { flex: 1; padding: 8px 0 12px; }
+
+    .sidebar-section {
+      padding: 16px 16px 5px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #3A5468;
+    }
+
+    /* Nav links */
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8.5px 12px;
+      margin: 1px 8px;
+      border-radius: 7px;
+      color: var(--sb-text);
+      text-decoration: none;
+      font-size: 0.83rem;
+      font-weight: 500;
+      transition: background 0.13s, color 0.13s;
+    }
+
+    .sidebar-link:hover {
+      background: var(--sb-hover);
+      color: #d0e4ef;
+    }
+
+    .sidebar-link.active {
+      background: var(--oto-green);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .sidebar-link i {
+      font-size: 0.88rem;
+      width: 16px;
+      text-align: center;
+      flex-shrink: 0;
+      opacity: 0.85;
+    }
+
+    .sidebar-link.active i { opacity: 1; }
+
+    /* Footer */
+    .sidebar-footer {
+      padding: 11px 16px;
+      border-top: 1px solid var(--sb-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      background: var(--sb-bg-deep);
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--oto-green);
+      flex-shrink: 0;
+      animation: livepulse 2.2s ease-in-out infinite;
+    }
+
+    @keyframes livepulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(43,183,128,0.4); }
+      50%       { opacity: 0.5; box-shadow: 0 0 0 4px rgba(43,183,128,0); }
+    }
+
+    /* ── Topbar — full-width fixed, mirrors OTO's white nav ────── */
+    .topbar {
+      background: var(--oto-surface);
+      border-bottom: 1px solid var(--oto-border);
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 200;
+      box-shadow: 0 1px 3px rgba(26,48,64,0.06);
+    }
+
+    /* OTO logo text style in topbar (matches site nav) */
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 800;
+      font-size: 1.1rem;
+      letter-spacing: -0.5px;
+      color: var(--oto-heading);
+      text-decoration: none;
+    }
+
+    .topbar-brand .o1 { color: var(--oto-green); }
+    .topbar-brand .t  { color: var(--oto-heading); }
+    .topbar-brand .o2 { color: var(--oto-green); }
+
+    .topbar-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--oto-border);
+      margin: 0 14px;
+    }
+
+    .topbar-context {
+      font-size: 0.8rem;
+      color: var(--oto-muted);
+      font-weight: 400;
+    }
+
+    /* "Live Pipeline" pill — OTO green tint, like their active tab */
+    .topbar-pill {
+      font-size: 0.66rem;
+      background: var(--oto-green-bg);
+      color: var(--oto-green-text);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      border: 1px solid rgba(43,183,128,0.25);
+    }
+
+    /* ── Topbar user area ───────────────────────────────────────── */
+    .topbar-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--oto-green);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .topbar-username {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--oto-heading);
+    }
+
+    .topbar-logout {
+      color: var(--oto-muted);
+      font-size: 1rem;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      transition: color 0.13s;
+    }
+
+    .topbar-logout:hover { color: #dc3545; }
+
+    /* ── Main layout ────────────────────────────────────────────── */
+    .main-content {
+      margin-left: 240px;
+      margin-top: 52px;
+      min-height: calc(100vh - 52px);
+      min-width: 0;
+    }
+
+    .content-wrap { padding: 24px; }
+
+    /* ── Cards — white surface, OTO-style subtle border ─────────── */
+    .metric-card {
+      border-radius: 10px;
+      border: 1px solid var(--oto-border);
+      box-shadow: 0 1px 4px rgba(26,48,64,0.05);
+      background: var(--oto-surface);
+    }
+
+    /* ── Page headings — OTO's dark teal-navy ───────────────────── */
+    h4.fw-bold, .page-title {
+      color: var(--oto-heading) !important;
+    }
+
+    /* ── AI / model tag ──────────────────────────────────────────── */
+    .ai-tag {
+      font-size: 0.63rem;
+      background: var(--oto-green-bg);
+      color: var(--oto-green-text);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* ── Text muted override to use OTO's muted tone ────────────── */
+    .text-muted { color: var(--oto-muted) !important; }
+
+    /* ── Section label ───────────────────────────────────────────── */
+    .section-label {
+      color: var(--oto-muted);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Badges ──────────────────────────────────────────────────── */
+    .badge-hot   { background: #dc3545 !important; }
+    .badge-warm  { background: #fd7e14 !important; }
+    .badge-cold  { background: #6c757d !important; }
+    .badge-green { background: #198754 !important; }
+    .badge-amber { background: #fd7e14 !important; }
+    .badge-red   { background: #dc3545 !important; }
+
+    /* ── Grade colours ───────────────────────────────────────────── */
+    .grade-Ap { color: #198754; font-weight: 700; }
+    .grade-A  { color: #20c997; font-weight: 700; }
+    .grade-B  { color: #0d6efd; font-weight: 700; }
+    .grade-C  { color: #fd7e14; font-weight: 700; }
+    .grade-D  { color: #dc3545; font-weight: 700; }
+
+    .shap-bar-pos { background: #198754; height: 20px; border-radius: 3px; }
+    .shap-bar-neg { background: #dc3545; height: 20px; border-radius: 3px; }
+    .gauge-wrap   { position: relative; width: 160px; margin: 0 auto; }
+
+    /* ── Tables ──────────────────────────────────────────────────── */
+    .table thead th {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--oto-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: #F9FAFB;
+      border-bottom: 2px solid var(--oto-border);
+    }
+
+    .table-hover tbody tr:hover {
+      cursor: pointer;
+      background: #EDF9F4;   /* OTO green tint on hover */
+    }
+
+    /* ── Buttons — OTO green primary ─────────────────────────────── */
+    .btn-outline-primary {
+      color: var(--oto-green);
+      border-color: var(--oto-green);
+    }
+    .btn-outline-primary:hover {
+      background: var(--oto-green);
+      border-color: var(--oto-green);
+      color: #fff;
+    }
+
+    /* "Apply for Loan" style primary button */
+    .btn-oto {
+      background: var(--oto-green);
+      border-color: var(--oto-green);
+      color: #fff;
+      font-weight: 600;
+      border-radius: 8px;
+      padding: 8px 22px;
+      letter-spacing: 0.01em;
+    }
+    .btn-oto:hover {
+      background: var(--oto-green-dark);
+      border-color: var(--oto-green-dark);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Topbar — full-width, above everything ─────────────────── -->
+  <div class="topbar">
+    <div class="d-flex align-items-center">
+      <span class="topbar-brand">
+        <span class="o1">O</span><span class="t">T</span><span class="o2">O</span>
+      </span>
+      <div class="topbar-divider"></div>
+      <span class="topbar-context">AI Lending Console &nbsp;·&nbsp; Panel Demo</span>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <span class="topbar-pill">Live Pipeline</span>
+      {% if user.is_authenticated %}
+      <div class="d-flex align-items-center gap-2" style="border-left:1px solid var(--oto-border);padding-left:16px;">
+        <div class="topbar-avatar">{{ user.username|slice:":1"|upper }}</div>
+        <span class="topbar-username">{{ user.username }}</span>
+        <form method="post" action="/accounts/logout/" style="margin:0;">
+          {% csrf_token %}
+          <button type="submit" class="topbar-logout" title="Sign out">
+            <i class="bi bi-box-arrow-right"></i>
+          </button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Sidebar — sits below topbar ──────────────────────────── -->
+  <aside class="sidebar">
+    <nav class="sidebar-nav" style="padding-top:12px;">
+      <a href="/" class="sidebar-link {% if request.path == '/' %}active{% endif %}">
+        <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+      </a>
+
+      <div class="sidebar-section">Pipeline</div>
+
+      <a href="/leads/" class="sidebar-link {% if '/leads' in request.path %}active{% endif %}">
+        <i class="bi bi-person-check"></i><span>Lead Scoring</span>
+      </a>
+      <a href="/kyc/" class="sidebar-link {% if '/kyc' in request.path %}active{% endif %}">
+        <i class="bi bi-file-earmark-person"></i><span>Document KYC</span>
+      </a>
+      <a href="/credit/" class="sidebar-link {% if '/credit' in request.path %}active{% endif %}">
+        <i class="bi bi-calculator"></i><span>Credit Engine</span>
+      </a>
+      <a href="/routing/" class="sidebar-link {% if '/routing' in request.path %}active{% endif %}">
+        <i class="bi bi-diagram-3"></i><span>Lender Routing</span>
+      </a>
+      <a href="/fraud/" class="sidebar-link {% if '/fraud' in request.path %}active{% endif %}">
+        <i class="bi bi-shield-check"></i><span>Fraud Detection</span>
+      </a>
+      <a href="/collections/" class="sidebar-link {% if '/collections' in request.path %}active{% endif %}">
+        <i class="bi bi-telephone-inbound"></i><span>Collections</span>
+      </a>
+      <a href="/retention/" class="sidebar-link {% if '/retention' in request.path %}active{% endif %}">
+        <i class="bi bi-arrow-repeat"></i><span>Retention</span>
+      </a>
+
+      <div class="sidebar-section">System</div>
+
+      <a href="/admin/" class="sidebar-link">
+        <i class="bi bi-gear"></i><span>Admin</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="live-dot"></div>
+      <span style="color:#4E6878;font-size:0.71rem;font-weight:500;">200 applicants</span>
+    </div>
+  </aside>
+
+  <!-- ── Main content ──────────────────────────────────────────── -->
+  <div class="main-content">
+    <div class="content-wrap">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Collections — {{ applicant.name }}{% endblock %}
+{% block content %}
+
+<div class="mb-3"><a href="/collections/" class="text-muted text-decoration-none">← Collections</a></div>
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">{{ applicant.name }}</h4>
+    <small class="text-muted">Collections Risk · {{ applicant.get_city_display }} · ₹{{ emi }}/month EMI</small>
+  </div>
+  <span class="ms-3">
+    {% if alert.risk_bucket == 'green' %}
+      <span class="badge badge-green fs-6">Green</span>
+    {% elif alert.risk_bucket == 'amber' %}
+      <span class="badge badge-amber fs-6">Amber</span>
+    {% else %}
+      <span class="badge badge-red fs-6">Red</span>
+    {% endif %}
+  </span>
+</div>
+
+<div class="row g-3">
+  <!-- DPD Probabilities -->
+  <div class="col-md-3">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Delinquency Risk <span class="ai-tag">LSTM</span></div>
+      {% for label, prob, color in dpd_probs %}
+      {% endfor %}
+      <div class="mb-3">
+        <div class="d-flex justify-content-between mb-1">
+          <small class="fw-semibold">30 DPD Risk</small>
+          <small class="{% if alert.dpd_30_prob >= 0.5 %}text-danger fw-bold{% elif alert.dpd_30_prob >= 0.2 %}text-warning{% else %}text-success{% endif %}">
+            {{ alert.dpd_30_prob }}
+          </small>
+        </div>
+        <div class="progress mb-3" style="height:10px;">
+          <div class="progress-bar {% if alert.dpd_30_prob >= 0.5 %}bg-danger{% elif alert.dpd_30_prob >= 0.2 %}bg-warning{% else %}bg-success{% endif %}"
+               style="width:{{ alert.dpd_30_prob }}00%"></div>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <small class="fw-semibold">60 DPD Risk</small>
+          <small>{{ alert.dpd_60_prob }}</small>
+        </div>
+        <div class="progress mb-3" style="height:8px;">
+          <div class="progress-bar bg-secondary" style="width:{{ alert.dpd_60_prob }}00%"></div>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <small class="fw-semibold">90 DPD Risk</small>
+          <small>{{ alert.dpd_90_prob }}</small>
+        </div>
+        <div class="progress" style="height:6px;">
+          <div class="progress-bar bg-secondary" style="width:{{ alert.dpd_90_prob }}00%"></div>
+        </div>
+      </div>
+      <hr>
+      <div class="fw-semibold mb-2">Recommended Channel</div>
+      <span class="badge bg-primary fs-6">{{ alert.recommended_channel }}</span>
+    </div>
+  </div>
+
+  <!-- Repayment Timeline -->
+  <div class="col-md-5">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Repayment Timeline <span class="ai-tag">12-Month History</span></div>
+      <canvas id="timelineChart" height="200"></canvas>
+      <div class="table-responsive mt-3">
+        <table class="table table-sm">
+          <thead><tr><th>Month</th><th>EMI</th><th>On Time</th><th>DPD</th></tr></thead>
+          <tbody>
+            {% for r in repayments %}
+            <tr class="{% if not r.paid_on_time %}table-danger{% endif %}">
+              <td>M{{ r.month_number }}</td>
+              <td>₹{{ r.emi_amount }}</td>
+              <td>{% if r.paid_on_time %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-x-circle-fill text-danger"></i>{% endif %}</td>
+              <td>{% if r.days_past_due > 0 %}<span class="text-danger">{{ r.days_past_due }}d</span>{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- NLP Message -->
+  <div class="col-md-4">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">AI-Generated Follow-up <span class="ai-tag">GPT-4o Mock</span></div>
+      <div class="d-flex align-items-center mb-2">
+        <span class="badge bg-info text-dark me-2">{{ lang_display }}</span>
+        <span class="badge bg-light text-dark border">{{ alert.recommended_channel }}</span>
+      </div>
+      <div class="border rounded p-3 bg-light" style="font-size:0.9rem;line-height:1.6;">
+        {{ alert.generated_message }}
+      </div>
+      <div class="small text-muted mt-2">
+        Message generated in <strong>{{ lang_display }}</strong> based on customer's city ({{ applicant.get_city_display }}) and risk bucket.
+      </div>
+      <hr>
+      <div class="fw-semibold mb-2">Loan Summary</div>
+      <table class="table table-sm">
+        <tr><td>Loan Amount</td><td>₹{{ applicant.loan_amount|floatformat:0 }}</td></tr>
+        <tr><td>Monthly EMI</td><td>₹{{ emi }}</td></tr>
+        <tr><td>Tenure</td><td>{{ applicant.tenure_months }} months</td></tr>
+        <tr><td>Employment</td><td>{{ applicant.get_employment_type_display }}</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const tl = {{ timeline_labels|safe }};
+const td = {{ timeline_dpd|safe }};
+const tc = {{ timeline_colors|safe }};
+new Chart(document.getElementById('timelineChart'), {
+  type: 'bar',
+  data: {
+    labels: tl,
+    datasets: [{
+      label: 'Days Past Due',
+      data: td,
+      backgroundColor: tc,
+      borderRadius: 3,
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, title: { display: true, text: 'Days Past Due' } }
+    }
+  }
+});
+</script>
+{% endblock %}

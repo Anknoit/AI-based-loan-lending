@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Retention{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">Retention &amp; Upgrade</h4>
+    <small class="text-muted">Layer 7 — Survival model + collaborative filtering → upgrade trigger at right moment</small>
+  </div>
+  <span class="ai-tag ms-3">Survival Model Mock</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#dc3545;">{{ hot }}</div>
+      <div class="text-muted">Hot — Upgrade Ready</div>
+      <small class="text-muted">P(upgrade) ≥ 0.65</small>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#fd7e14;">{{ warm }}</div>
+      <div class="text-muted">Warm</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#6c757d;">{{ cold }}</div>
+      <div class="text-muted">Cold</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:1.3rem;color:#2BB780;">₹{{ incremental_book|floatformat:0 }}</div>
+      <div class="text-muted">Incremental Book (Hot)</div>
+      <small class="text-muted">If all Hot scores convert</small>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-5">
+    <div class="card metric-card p-3">
+      <div class="fw-semibold mb-2">Upgrade Target Bikes (Hot Scores) <span class="ai-tag">Collab Filter</span></div>
+      <canvas id="bikeChart" height="200"></canvas>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card metric-card p-3">
+      <div class="fw-semibold mb-2">How the Upgrade Trigger Works</div>
+      <div class="row text-center mt-2">
+        <div class="col">
+          <div class="display-6">8+</div>
+          <div class="small text-muted">On-time payments</div>
+        </div>
+        <div class="col text-muted" style="font-size:2rem;">+</div>
+        <div class="col">
+          <div class="display-6">5+</div>
+          <div class="small text-muted">Browse events / 30d</div>
+        </div>
+        <div class="col text-muted" style="font-size:2rem;">=</div>
+        <div class="col">
+          <div class="display-6" style="color:#2BB780;">~78%</div>
+          <div class="small text-muted">P(upgrade in 90d)</div>
+        </div>
+      </div>
+      <hr>
+      <div class="row text-center mt-2">
+        <div class="col-4">
+          <div class="fw-bold">App Push</div>
+          <div class="small text-muted">P > 0.65 (Hot)</div>
+        </div>
+        <div class="col-4">
+          <div class="fw-bold">WhatsApp</div>
+          <div class="small text-muted">P 0.35–0.65 (Warm)</div>
+        </div>
+        <div class="col-4">
+          <div class="fw-bold">Agent Call</div>
+          <div class="small text-muted">P < 0.35 (Cold)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card metric-card">
+  <div class="card-body">
+    <div class="fw-semibold mb-3">All Retention Scores</div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th><th>Band</th><th>P(Upgrade)</th><th>Months Done</th>
+            <th>On-Time Rate</th><th>Recommended Bike</th><th>New EMI</th><th>Channel</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in scores %}
+          <tr onclick="window.location='/retention/{{ s.applicant.id }}/'">
+            <td class="fw-semibold">{{ s.applicant.name }}</td>
+            <td>
+              {% if s.upgrade_score_band == 'Hot' %}
+                <span class="badge badge-hot">Hot</span>
+              {% elif s.upgrade_score_band == 'Warm' %}
+                <span class="badge badge-warm">Warm</span>
+              {% else %}
+                <span class="badge badge-cold">Cold</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress" style="width:60px;height:5px;">
+                  <div class="progress-bar {% if s.upgrade_score_band == 'Hot' %}bg-danger{% elif s.upgrade_score_band == 'Warm' %}bg-warning{% else %}bg-secondary{% endif %}"
+                       style="width:{{ s.upgrade_probability }}00%"></div>
+                </div>
+                <small>{{ s.upgrade_probability }}</small>
+              </div>
+            </td>
+            <td>{{ s.months_completed }}</td>
+            <td>
+              <span class="{% if s.on_time_payment_rate >= 0.8 %}text-success fw-bold{% elif s.on_time_payment_rate >= 0.6 %}text-warning{% else %}text-danger{% endif %}">
+                {{ s.on_time_payment_rate|floatformat:0 }}0%
+              </span>
+            </td>
+            <td><small>{{ s.recommended_bike|title }}</small></td>
+            <td>₹{{ s.estimated_new_emi }}</td>
+            <td><span class="badge bg-light text-dark border">{{ s.trigger_channel }}</span></td>
+            <td><a href="/retention/{{ s.applicant.id }}/" class="btn btn-sm btn-outline-primary">Detail</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const bc = {{ bike_counts|safe }};
+new Chart(document.getElementById('bikeChart'), {
+  type: 'bar',
+  data: {
+    labels: Object.keys(bc),
+    datasets: [{ label: 'Hot Upgrade Targets', data: Object.values(bc),
+      backgroundColor: '#2BB780', borderRadius: 4 }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: { x: { beginAtZero: true } }
+  }
+});
+</script>
+{% endblock %}

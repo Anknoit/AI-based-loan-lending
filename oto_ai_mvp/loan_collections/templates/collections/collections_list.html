@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Collections{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">Predictive Collections</h4>
+    <small class="text-muted">Layer 6 — LSTM delinquency risk → LLM personalised follow-up in regional language</small>
+  </div>
+  <span class="ai-tag ms-3">LSTM + GPT Mock</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#198754;">{{ green }}</div>
+      <div class="text-muted">Green — On Track</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#fd7e14;">{{ amber }}</div>
+      <div class="text-muted">Amber — Watch</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#dc3545;">{{ red }}</div>
+      <div class="text-muted">Red — Critical</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:1.5rem;color:#e63946;">₹{{ emi_at_risk|floatformat:0 }}</div>
+      <div class="text-muted">EMI at Risk (monthly)</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="card metric-card p-3">
+      <div class="fw-semibold mb-2">Collections Risk by City <span class="ai-tag">LSTM Predictions</span></div>
+      <canvas id="cityChart" height="100"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="card metric-card">
+  <div class="card-body">
+    <div class="fw-semibold mb-3">All Active Loans — DPD Risk</div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th><th>Bucket</th><th>P(30 DPD)</th><th>P(60 DPD)</th><th>P(90 DPD)</th>
+            <th>Channel</th><th>Language</th><th>City</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in alerts %}
+          <tr onclick="window.location='/collections/{{ a.applicant.id }}/'">
+            <td class="fw-semibold">{{ a.applicant.name }}</td>
+            <td>
+              {% if a.risk_bucket == 'green' %}
+                <span class="badge badge-green">Green</span>
+              {% elif a.risk_bucket == 'amber' %}
+                <span class="badge badge-amber">Amber</span>
+              {% else %}
+                <span class="badge badge-red">Red</span>
+              {% endif %}
+            </td>
+            <td class="{% if a.dpd_30_prob >= 0.5 %}text-danger fw-bold{% elif a.dpd_30_prob >= 0.2 %}text-warning{% else %}text-success{% endif %}">
+              {{ a.dpd_30_prob }}
+            </td>
+            <td>{{ a.dpd_60_prob }}</td>
+            <td>{{ a.dpd_90_prob }}</td>
+            <td><span class="badge bg-light text-dark border">{{ a.recommended_channel }}</span></td>
+            <td><span class="badge bg-light text-dark border">{{ a.language|upper }}</span></td>
+            <td>{{ a.applicant.get_city_display }}</td>
+            <td><a href="/collections/{{ a.applicant.id }}/" class="btn btn-sm btn-outline-primary">Detail</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const cd = {{ city_data|safe }};
+new Chart(document.getElementById('cityChart'), {
+  type: 'bar',
+  data: {
+    labels: cd.map(d => d.city),
+    datasets: [
+      { label: 'Green', data: cd.map(d => d.green), backgroundColor: '#198754' },
+      { label: 'Amber', data: cd.map(d => d.amber), backgroundColor: '#fd7e14' },
+      { label: 'Red',   data: cd.map(d => d.red),   backgroundColor: '#dc3545' },
+    ]
+  },
+  options: {
+    plugins: { legend: { position: 'right' } },
+    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+  }
+});
+</script>
+{% endblock %}

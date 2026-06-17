@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Retention — {{ applicant.name }}{% endblock %}
+{% block content %}
+
+<div class="mb-3"><a href="/retention/" class="text-muted text-decoration-none">← Retention</a></div>
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">{{ applicant.name }}</h4>
+    <small class="text-muted">Upgrade Score · {{ applicant.get_city_display }} · {{ current_bike_display }}</small>
+  </div>
+  <span class="ms-3">
+    {% if score.upgrade_score_band == 'Hot' %}
+      <span class="badge badge-hot fs-6">Hot — Upgrade Now</span>
+    {% elif score.upgrade_score_band == 'Warm' %}
+      <span class="badge badge-warm fs-6">Warm</span>
+    {% else %}
+      <span class="badge badge-cold fs-6">Cold</span>
+    {% endif %}
+  </span>
+</div>
+
+<div class="row g-3">
+  <!-- Upgrade Probability Gauge -->
+  <div class="col-md-3">
+    <div class="card metric-card p-4 text-center">
+      <div class="fw-semibold mb-2">Upgrade Probability <span class="ai-tag">Survival Model</span></div>
+      <canvas id="upgradeGauge" width="160" height="120"></canvas>
+      <div class="fw-bold mt-1" style="font-size:2.5rem;
+        color:{% if score.upgrade_score_band == 'Hot' %}#dc3545{% elif score.upgrade_score_band == 'Warm' %}#fd7e14{% else %}#6c757d{% endif %}">
+        {{ prob_pct }}%
+      </div>
+      <div class="text-muted small">P(upgrade in 90 days)</div>
+      <hr>
+      <div class="fw-semibold mb-1">Trigger Channel</div>
+      <span class="badge bg-primary fs-6">{{ score.trigger_channel }}</span>
+    </div>
+  </div>
+
+  <!-- EMI Comparison -->
+  <div class="col-md-4">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Upgrade Proposal <span class="ai-tag">Collab Filter</span></div>
+      <div class="row text-center mb-3">
+        <div class="col">
+          <div class="small text-muted">Current Bike</div>
+          <div class="fw-bold">{{ current_bike_display }}</div>
+          <div class="fw-bold" style="font-size:1.5rem;">₹{{ current_emi }}</div>
+          <div class="small text-muted">/month EMI</div>
+        </div>
+        <div class="col-1 d-flex align-items-center justify-content-center" style="font-size:1.5rem;">→</div>
+        <div class="col">
+          <div class="small text-muted">Upgrade To</div>
+          <div class="fw-bold text-success">{{ bike_display }}</div>
+          <div class="fw-bold text-success" style="font-size:1.5rem;">₹{{ score.estimated_new_emi }}</div>
+          <div class="small text-muted">/month EMI</div>
+        </div>
+      </div>
+      <div class="alert {% if score.emi_delta > 0 %}alert-warning{% else %}alert-success{% endif %} small">
+        EMI delta: <strong>{% if score.emi_delta > 0 %}+{% endif %}₹{{ score.emi_delta }}/month</strong>
+        {% if score.emi_delta <= 200 %} — minimal increase, high conversion likelihood{% endif %}
+      </div>
+      <table class="table table-sm">
+        <tr><td>Months Completed</td><td>{{ score.months_completed }}</td></tr>
+        <tr><td>On-Time Rate</td>
+            <td class="{% if score.on_time_payment_rate >= 0.8 %}text-success fw-bold{% else %}text-warning{% endif %}">
+              {{ score.on_time_payment_rate|floatformat:0 }}0%
+            </td>
+        </tr>
+        <tr><td>Browse Events (30d)</td><td>{{ score.browse_events_last_30d }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Offer Message -->
+  <div class="col-md-5">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Personalised Offer <span class="ai-tag">AI Generated</span></div>
+      <div class="border rounded p-3 bg-light" style="font-size:0.95rem;line-height:1.6;">
+        {{ score.offer_message }}
+      </div>
+      <div class="small text-muted mt-2">
+        Sent via <strong>{{ score.trigger_channel }}</strong> — personalised based on payment history + browsing behaviour
+      </div>
+      <hr>
+      <div class="fw-semibold mb-2">Why this customer?</div>
+      <div class="d-flex flex-wrap gap-2">
+        {% if score.months_completed >= 6 %}
+        <span class="badge bg-success">✓ {{ score.months_completed }} months completed</span>
+        {% endif %}
+        {% if score.on_time_payment_rate >= 0.8 %}
+        <span class="badge bg-success">✓ {{ score.on_time_payment_rate|floatformat:0 }}0% on-time</span>
+        {% endif %}
+        {% if score.browse_events_last_30d >= 3 %}
+        <span class="badge bg-info text-dark">✓ {{ score.browse_events_last_30d }} browse events</span>
+        {% endif %}
+      </div>
+      <div class="mt-3 d-flex gap-2">
+        <a href="/collections/{{ applicant.id }}/" class="btn btn-sm btn-outline-secondary flex-fill">← Collections</a>
+        <a href="/credit/{{ applicant.id }}/" class="btn btn-sm btn-outline-primary flex-fill">Credit Detail</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const prob = {{ score.upgrade_probability }};
+new Chart(document.getElementById('upgradeGauge'), {
+  type: 'doughnut',
+  data: {
+    datasets: [{
+      data: [prob, 1 - prob],
+      backgroundColor: [
+        prob >= 0.65 ? '#dc3545' : prob >= 0.35 ? '#fd7e14' : '#6c757d',
+        '#e9ecef'
+      ],
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    cutout: '70%', rotation: -90, circumference: 180,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+  }
+});
+</script>
+{% endblock %}

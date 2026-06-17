@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Lead — {{ applicant.name }}{% endblock %}
+{% block content %}
+
+<div class="mb-3">
+  <a href="/leads/" class="text-muted text-decoration-none">← Lead Scoring</a>
+</div>
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">{{ applicant.name }}</h4>
+    <small class="text-muted">{{ applicant.get_city_display }} · {{ applicant.get_employment_type_display }} · ₹{{ applicant.monthly_income|floatformat:0 }}/mo</small>
+  </div>
+  <span class="ms-3">
+    {% if lead.score_band == 'Hot' %}
+      <span class="badge badge-hot fs-6">Hot Lead</span>
+    {% elif lead.score_band == 'Warm' %}
+      <span class="badge badge-warm fs-6">Warm Lead</span>
+    {% else %}
+      <span class="badge badge-cold fs-6">Cold Lead</span>
+    {% endif %}
+  </span>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card metric-card p-4 text-center">
+      <div class="text-muted mb-1" style="font-size:0.8rem;">PROPENSITY SCORE</div>
+      <div class="fw-bold mb-2" style="font-size:3rem;
+        color:{% if lead.score_band == 'Hot' %}#dc3545{% elif lead.score_band == 'Warm' %}#fd7e14{% else %}#6c757d{% endif %}">
+        {{ lead.propensity_score }}
+      </div>
+      <div class="progress mb-3" style="height:10px;">
+        <div class="progress-bar {% if lead.score_band == 'Hot' %}bg-danger{% elif lead.score_band == 'Warm' %}bg-warning{% else %}bg-secondary{% endif %}"
+             style="width:{{ lead.propensity_score }}00%"></div>
+      </div>
+      <div class="small text-muted">Rank #{{ lead.rank }} in lead queue</div>
+      <hr>
+      <form method="post" action="/leads/score/{{ applicant.id }}/">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-outline-primary w-100">↺ Re-score Lead</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Session Signals <span class="ai-tag">Feature Input</span></div>
+      <table class="table table-sm">
+        <tr><td>EMI Calculator Used</td><td class="text-end">{% if lead.emi_calc_used %}<i class="bi bi-check-circle-fill text-success"></i> Yes{% else %}<i class="bi bi-x-circle-fill text-danger"></i> No{% endif %}</td></tr>
+        <tr><td>Return Visit</td><td class="text-end">{% if lead.return_visit %}<i class="bi bi-check-circle-fill text-success"></i> Yes{% else %}<i class="bi bi-x-circle-fill text-danger"></i> No{% endif %}</td></tr>
+        <tr><td>Session Duration</td><td class="text-end">{{ lead.session_minutes|floatformat:1 }} min</td></tr>
+        <tr><td>Bike Pages Viewed</td><td class="text-end">{{ lead.models_viewed }}</td></tr>
+        <tr><td>UTM Source</td><td class="text-end"><span class="badge bg-light text-dark border">{{ lead.utm_source }}</span></td></tr>
+      </table>
+      <hr>
+      <div class="fw-semibold mb-2 mt-1">Applicant Profile</div>
+      <table class="table table-sm">
+        <tr><td>Bike</td><td class="text-end">{{ applicant.get_bike_model_display }}</td></tr>
+        <tr><td>Loan</td><td class="text-end">₹{{ applicant.loan_amount|floatformat:0 }}</td></tr>
+        <tr><td>Tenure</td><td class="text-end">{{ applicant.tenure_months }} months</td></tr>
+        <tr><td>Email</td><td class="text-end"><small>{{ applicant.email }}</small></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Feature Importance <span class="ai-tag">XGBoost SHAP</span></div>
+      <canvas id="featureChart" height="240"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+const chartData = {{ chart_data|safe }};
+new Chart(document.getElementById('featureChart'), {
+  type: 'bar',
+  data: {
+    labels: chartData.labels,
+    datasets: [{
+      label: 'Feature Contribution to Score',
+      data: chartData.values,
+      backgroundColor: ['#2BB780','#0d6efd','#6610f2','#fd7e14'],
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: { x: { beginAtZero: true, max: 0.30 } }
+  }
+});
+</script>
+{% endblock %}

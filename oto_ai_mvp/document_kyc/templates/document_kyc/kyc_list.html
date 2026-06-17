@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Document KYC{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">Document KYC</h4>
+    <small class="text-muted">Layer 2 — OCR extraction → field validation → bureau pull → KYC status</small>
+  </div>
+  <span class="ai-tag ms-3">AWS Textract Mock</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#198754;">{{ clear }}</div>
+      <div class="text-muted">KYC Clear</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#fd7e14;">{{ review }}</div>
+      <div class="text-muted">Needs Review</div>
+      <small class="text-muted">OCR mismatch / DOB flag</small>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card p-3 text-center">
+      <div class="fw-bold" style="font-size:2rem;color:#dc3545;">{{ rejected }}</div>
+      <div class="text-muted">Rejected</div>
+      <small class="text-muted">Bureau < 580</small>
+    </div>
+  </div>
+</div>
+
+<div class="card metric-card">
+  <div class="card-body">
+    <div class="d-flex align-items-center mb-3">
+      <span class="fw-semibold me-3">Filter:</span>
+      <a href="/kyc/" class="btn btn-sm {% if not status_filter %}btn-dark{% else %}btn-outline-secondary{% endif %} me-2">All</a>
+      <a href="/kyc/?status=clear" class="btn btn-sm {% if status_filter == 'clear' %}btn-success{% else %}btn-outline-success{% endif %} me-2">Clear</a>
+      <a href="/kyc/?status=review" class="btn btn-sm {% if status_filter == 'review' %}btn-warning{% else %}btn-outline-warning{% endif %} me-2">Review</a>
+      <a href="/kyc/?status=rejected" class="btn btn-sm {% if status_filter == 'rejected' %}btn-danger{% else %}btn-outline-danger{% endif %}">Rejected</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th><th>KYC Status</th><th>Name Match</th><th>DOB Match</th>
+            <th>Bureau Score</th><th>Source</th><th>PAN</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+          <tr>
+            <td class="fw-semibold">{{ r.applicant.name }}</td>
+            <td>
+              {% if r.kyc_status == 'clear' %}
+                <span class="badge bg-success">✓ Clear</span>
+              {% elif r.kyc_status == 'review' %}
+                <span class="badge bg-warning text-dark">⚠ Review</span>
+              {% else %}
+                <span class="badge bg-danger">✗ Rejected</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="{% if r.name_match_score >= 0.75 %}text-success{% else %}text-danger fw-bold{% endif %}">
+                {{ r.name_match_score }}
+              </span>
+            </td>
+            <td>{% if r.dob_match %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-x-circle-fill text-danger"></i>{% endif %}</td>
+            <td>
+              {% if r.bureau_score %}
+                <span class="{% if r.bureau_score >= 700 %}text-success{% elif r.bureau_score >= 580 %}text-warning{% else %}text-danger{% endif %} fw-bold">
+                  {{ r.bureau_score }}
+                </span>
+              {% else %}
+                <span class="text-muted">No Hit</span>
+              {% endif %}
+            </td>
+            <td><small>{{ r.get_bureau_source_display }}</small></td>
+            <td><code>{{ r.pan_number }}</code></td>
+            <td><a href="/kyc/{{ r.applicant.id }}/" class="btn btn-sm btn-outline-primary">Detail</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

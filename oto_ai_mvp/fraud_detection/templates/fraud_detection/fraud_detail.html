@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Fraud — {{ applicant.name }}{% endblock %}
+{% block content %}
+
+<div class="mb-3"><a href="/fraud/" class="text-muted text-decoration-none">← Fraud Detection</a></div>
+
+<div class="d-flex align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">{{ applicant.name }}</h4>
+    <small class="text-muted">Fraud Risk Report · Device {{ assessment.device_id }}</small>
+  </div>
+  <span class="ms-3">
+    {% if assessment.fraud_risk_label == 'high' %}
+      <span class="badge bg-danger fs-6">High Risk</span>
+    {% elif assessment.fraud_risk_label == 'medium' %}
+      <span class="badge bg-warning text-dark fs-6">Medium Risk</span>
+    {% else %}
+      <span class="badge bg-success fs-6">Low Risk</span>
+    {% endif %}
+  </span>
+</div>
+
+<div class="row g-3">
+  <!-- Score Gauge -->
+  <div class="col-md-3">
+    <div class="card metric-card p-4 text-center">
+      <div class="fw-semibold mb-2">GNN Fraud Score <span class="ai-tag">Graph Neural Net</span></div>
+      <canvas id="fraudGauge" width="160" height="120"></canvas>
+      <div class="fw-bold mt-1" style="font-size:2.5rem;
+        color:{% if assessment.fraud_risk_label == 'high' %}#dc3545{% elif assessment.fraud_risk_label == 'medium' %}#fd7e14{% else %}#198754{% endif %}">
+        {{ score_pct }}%
+      </div>
+      <div class="text-muted small">Raw score: {{ assessment.fraud_risk_score }}</div>
+      <hr>
+      <div class="fw-semibold mt-1 mb-1">Recommended Action</div>
+      {% if assessment.recommended_action == 'reject' %}
+        <span class="badge bg-danger fs-6">Reject</span>
+      {% elif assessment.recommended_action == 'manual_review' %}
+        <span class="badge bg-warning text-dark fs-6">Manual Review</span>
+      {% elif assessment.recommended_action == 'watchlist' %}
+        <span class="badge bg-secondary fs-6">Watchlist</span>
+      {% else %}
+        <span class="badge bg-success fs-6">Pass</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Flag Checklist -->
+  <div class="col-md-4">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Risk Signal Checklist</div>
+      {% for label, triggered, detail in flags %}
+      <div class="d-flex align-items-start mb-3">
+        <div class="me-2 mt-1" style="font-size:1.2rem;">
+          {% if triggered %}<i class="bi bi-exclamation-triangle-fill text-danger"></i>{% else %}<i class="bi bi-check-circle-fill text-success"></i>{% endif %}
+        </div>
+        <div>
+          <div class="fw-semibold {% if triggered %}text-danger{% else %}text-success{% endif %}">
+            {{ label }}
+          </div>
+          <div class="small text-muted">{{ detail }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Graph Neighbourhood -->
+  <div class="col-md-5">
+    <div class="card metric-card p-4">
+      <div class="fw-semibold mb-3">Graph Neighbourhood <span class="ai-tag">Identity Graph</span></div>
+      <table class="table table-sm mb-3">
+        <tr><td>Device ID</td><td><code>{{ assessment.device_id }}</code></td></tr>
+        <tr><td>IP Address</td><td><code>{{ assessment.ip_address }}</code></td></tr>
+        <tr><td>Device Reuse</td>
+            <td class="{% if assessment.device_reuse_count > 1 %}text-danger fw-bold{% endif %}">
+              {{ assessment.device_reuse_count }} application{{ assessment.device_reuse_count|pluralize }}
+            </td>
+        </tr>
+        <tr><td>IP Reuse</td>
+            <td class="{% if assessment.ip_reuse_count > 1 %}text-warning{% endif %}">
+              {{ assessment.ip_reuse_count }}×
+            </td>
+        </tr>
+        <tr><td>Address Cluster</td><td>{{ assessment.address_cluster_size }} applicants</td></tr>
+      </table>
+
+      {% if shared_device %}
+      <div class="alert alert-danger small">
+        <strong><i class="bi bi-exclamation-octagon-fill me-1"></i>Fraud Ring Alert</strong> — Device <code>{{ assessment.device_id }}</code>
+        was seen on {{ shared_device|length }} other application{{ shared_device|length|pluralize }}:
+        {% for s in shared_device %}
+          <a href="/fraud/{{ s.applicant.id }}/" class="badge bg-danger text-decoration-none ms-1">
+            {{ s.applicant.name }}
+          </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="alert alert-success small">
+        No other applications share this device ID. Graph neighbourhood is clean.
+      </div>
+      {% endif %}
+
+      <a href="/credit/{{ applicant.id }}/" class="btn btn-sm btn-outline-primary w-100 mt-2">
+        → View Credit Assessment
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+const score = {{ assessment.fraud_risk_score }};
+new Chart(document.getElementById('fraudGauge'), {
+  type: 'doughnut',
+  data: {
+    datasets: [{
+      data: [score, 1 - score],
+      backgroundColor: [
+        score > 0.7 ? '#dc3545' : score > 0.35 ? '#fd7e14' : '#198754',
+        '#e9ecef'
+      ],
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    cutout: '70%', rotation: -90, circumference: 180,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+  }
+});
+</script>
+{% endblock %}
